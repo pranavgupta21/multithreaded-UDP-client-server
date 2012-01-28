@@ -1,5 +1,11 @@
 *THE DOCUMENTATIONS FOR THE SERVER AND CLIENT HAVE BEEN CLUBBED INTO THIS README FILE AND ARE NOT AVAILABLE INDIVIDUALLY
 
+Description
+-----------
+
+The Package contains a server and a client which communicate using UDP. The package implements a Remote Timestamp Protocol (RTP).
+The client can request the server with the name of a file residing on the server and the server returns the time of last modification of the specefied file.
+In case of any errors, the user is appropriately informed.
 
 Instructions for USE:
 ---------------------
