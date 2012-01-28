@@ -1,1 +1,78 @@
-multithreaded UDP - based server and client package
+*THE DOCUMENTATIONS FOR THE SERVER AND CLIENT HAVE BEEN CLUBBED INTO THIS README FILE AND ARE NOT AVAILABLE INDIVIDUALLY
+
+
+Instructions for USE:
+---------------------
+
+SERVER:
+1. The folder server makes a complete and independent 'server' which communicates with a client at PORT 7747
+2. cd to the folder 'server':
+	cd server
+3. run the executable 'server'
+	./server (without any arguments)
+4. The Server has started listening on port 7747
+5. To Recompile the 'server' and run it, run the bash script 'srun.sh'
+	sh srun.sh
+	
+CLIENT:
+1. The folder client makes a complete and independent 'client' which communicates with the specified server at PORT 7747
+2. cd to the folder 'client'
+	cd client
+3. run the executable 'client'
+	a) with host address (name or IP address) and filename
+		./client <hostname> <filename>
+		
+		in this case, the client will enquire the time of last modification of the specified file, display error messages (if any) and end the client program
+		
+	b) with only the hostname
+		./client <hostname>
+		
+		in this case, the program will ask you for a filename, enquire the time of last modification of the specified file, display error messages (if any) and start its services once again by showing you the prompt for a filename. In this case you w‎ill have to end the program by using the kill character (^C in case of UNIX)
+
+4. To Recompile the client and run it, run the script crun.sh with 2,1 or 0 arguments. In case of 0 arguments, the host will be taken as 'localhost' and the filename will be asked.
+
+
+
+Working Algorithms (only description) :
+---------------------------------------
+
+PACKET FORMAT:
+The packet is sent over the network as a string. The four fields of the packet are separated by a SEPARATOR (;) defined in packet.h.
+For Example: Suppose
+	Connection Id = -1, type = 0, status = 0, buffer = "/home/pranav/github.c"
+then the corresponding packet string is:
+	"-1;0;0;/home/pranav/github.c"
+
+WORKING OF THE SERVER:
+1. Every New Packet recieved by the server, along with information of the corresponding client, is stored in a data structure 'Request' (defined in thread.h) and directly passed onto a new thread and continues to listen on the port (7747). All the packet processing and decision making takes place in that new thread. This is done to prevent any wastage of main server thread's time, so that it can quickly resume listening.
+2. The New Thread parses the packet received into a structure 'Packet' (defined in packet.h). It checks the connection id of the packet and decides whether it is a new request (connection id = -1) or DONE_ACK for an existing thread.
+	
+	NEW REQUEST:
+	
+	a) if number of connections has already reached the maximum limit, a REQUEST_ACK with a negative connection id is sent back indicating to the client that the server is too busy otherwise.
+	b) a call to the function insert_thread() (defined in thread.c) assigns a connection id inserts a 'thread' (instance of struct Thread - defined in thread.h) into the global thread list (head node - h_thread). It should be noticed that the thread has to wait on a thread mutex (mutex1) to call the function insert_thread();
+	c) timestamp of the specified file is determined and DONE packet sent. In case of a non-existent file, the DONE packet is sent with a status 1, indicating to the client that the file does not exist.
+	d) the thread now waits on the thread mutex (mutex2) to check if its DONE_ACK packet has been received. It checks so by calling the function ack_received() (defined in server_func.c). if the acknowledgement exists, it is removed by ack_received() and the waiting thread kills itself. Otherwise it once again waits on mutex2.
+	
+	DONE_ACK FOR AN EXISTING CONNECTION
+	
+	a) The thread waits on a thread mutex mutex2 to access the function insert_ack() (defined in server_func.c) which inserts a new 'ACK' (instance of the struct Ack defined in server_func.h) into the global ack list (head node - h_ack).
+	b) it unlocks mutex2 and kills itself.
+	
+WORKING OF THE CLIENT:
+1. Client sends a request to the server on the port 7747 with the specified filename.
+2. It receives a REQUEST_ACK (infinitely in case the REQUEST_ACK never comes).
+3. If the connection id in the REQUEST_ACK is -1, the client understands that the server is too busy, reports the same to the user and ends the request.
+4. Otherwise it saves the connection id for further communication in that request and waits for the DONE packet.
+5. if status of the DONE packet is 1, the client understands that the specified file does not exist, reports the same to the user and ends the request.
+6. It finally sends the DONE_ACK packet with the stored connection id and ends the request.
+
+
+
+Internal Documentation Format:
+------------------------------
+
+1. Description of the functions is given at the place of function definition and not function declaration
+2. extern variables have been described only at the place of their original declarations.get
+3. most of the printf/write statements used for debugging purposes have been retained in the code.
+4. The function get_timestamp() defined in thread.c is currently not being used; hence commented.
